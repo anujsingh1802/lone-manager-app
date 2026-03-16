@@ -1,0 +1,7 @@
+
+> loan-manager-backend@1.0.0 dev
+> node --watch src/server.js
+
+Loan Manager API running on http://localhost:5000
+Restarting 'src/server.js'
+Loan Manager API running on http://localhost:5000

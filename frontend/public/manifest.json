@@ -1,0 +1,24 @@
+{
+  "name": "Loan Manager Web",
+  "short_name": "LoanMgr",
+  "description": "Progressive web app for managing customers, loans, payments, ledgers and reports.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f7f6",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
