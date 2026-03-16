@@ -118,6 +118,8 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/loan-manager-web
 
 Create a new `Web Service` from this repo/folder.
 
+You can also let Render detect [render.yaml](/d:/2026/ladegerApp/loan-manager-app/render.yaml).
+
 Settings:
 
 - Root directory: `backend`
@@ -145,6 +147,8 @@ Important:
 ### 3. Deploy frontend on Vercel
 
 Create a new Vercel project.
+
+The frontend also includes [frontend/vercel.json](/d:/2026/ladegerApp/loan-manager-app/frontend/vercel.json) so Vercel can pick up the expected Vite build settings.
 
 Settings:
 
@@ -189,6 +193,24 @@ After deployment:
 3. Set `VITE_API_URL` in Vercel.
 4. Deploy frontend on Vercel.
 5. Test login and API calls.
+
+## Push to GitHub
+
+If you have already created an empty GitHub repository, run:
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+git branch -M main
+git push -u origin main
+```
+
+If you prefer SSH:
+
+```bash
+git remote add origin git@github.com:YOUR_USERNAME/YOUR_REPO.git
+git branch -M main
+git push -u origin main
+```
 
 ## API endpoints
 
