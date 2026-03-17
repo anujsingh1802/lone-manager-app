@@ -9,7 +9,7 @@ function signToken(owner) {
       name: owner.name,
       phone: owner.phone,
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'dev-jwt-secret',
     { expiresIn: '7d' }
   );
 }
@@ -20,7 +20,7 @@ export async function bootstrapOwner() {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(process.env.OWNER_PASSWORD, 10);
+  const passwordHash = await bcrypt.hash(process.env.OWNER_PASSWORD || 'admin123', 10);
   await Owner.create({
     name: process.env.OWNER_NAME || 'Owner',
     phone: process.env.OWNER_PHONE || '9999999999',
