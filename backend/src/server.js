@@ -9,6 +9,9 @@ async function startServer() {
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI is required to start the API.');
   }
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is required to start the API.');
+  }
 
   await connectDatabase(process.env.MONGODB_URI);
   await bootstrapOwner();

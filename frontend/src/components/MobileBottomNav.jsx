@@ -66,24 +66,28 @@ const navItems = [
 
 export function MobileBottomNav({ activeView, onChange }) {
   return (
-    <nav className="fixed inset-x-2 bottom-2 z-40 rounded-[24px] border border-white/70 bg-white/95 px-1.5 py-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur lg:hidden">
-      <div className="grid grid-cols-6 gap-0.5">
+    <nav className="fixed inset-x-2 bottom-2 z-40 lg:hidden">
+      <div className="rounded-[18px] border border-white/70 bg-white/90 px-1.5 py-1 shadow-[0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+        <div className="grid grid-cols-6 gap-0.5">
         {navItems.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => onChange(item.id)}
             title={item.label}
-            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-0.5 py-1.5 text-[9px] font-semibold leading-none transition ${
-              activeView === item.id ? 'bg-slate-900 text-white' : 'text-slate-500'
+            className={`group flex min-h-9 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[12px] px-0.5 py-1 text-[8px] font-semibold leading-none transition-all duration-200 active:scale-[0.95] ${
+              activeView === item.id
+                ? 'bg-slate-900 text-white shadow-[0_4px_12px_rgba(15,23,42,0.2)]'
+                : 'text-slate-500 hover:bg-slate-100/80 hover:text-slate-900'
             }`}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5 sm:h-5 sm:w-5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform duration-200 ${activeView === item.id ? 'scale-100' : 'group-hover:-translate-y-0.5'}`}>
               {item.icon}
             </svg>
-            <span className="max-w-full truncate">{item.label}</span>
+            <span className="max-w-full truncate text-[7px]">{item.label}</span>
           </button>
         ))}
+        </div>
       </div>
     </nav>
   );

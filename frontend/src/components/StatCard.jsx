@@ -9,9 +9,9 @@ export function StatCard({ label, value, money = false, accent = 'teal' }) {
   };
 
   return (
-    <div className={`rounded-[22px] border border-white/60 bg-gradient-to-br ${accents[accent]} p-3 shadow-sm sm:rounded-[28px] sm:p-5`}>
-      <p className="text-xs font-medium text-slate-500 sm:text-sm">{label}</p>
-      <h3 className="mt-2 text-lg font-semibold leading-tight sm:mt-3 sm:text-3xl">{money ? currency.format(value || 0) : value}</h3>
+    <div className={`rounded-xl sm:rounded-[22px] border border-white/60 bg-gradient-to-br ${accents[accent]} p-2.5 sm:p-4 md:p-5 md:rounded-[28px] shadow-sm`}>
+      <p className="text-[10px] sm:text-xs md:text-sm font-medium text-slate-500">{label}</p>
+      <h3 className="mt-1.5 sm:mt-2 text-base sm:text-2xl md:text-3xl font-semibold leading-tight">{money ? currency.format(value || 0) : value}</h3>
     </div>
   );
 }

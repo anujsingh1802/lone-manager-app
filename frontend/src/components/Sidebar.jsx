@@ -12,21 +12,21 @@ const navItems = [
 export function Sidebar({ activeView, setActiveView, isMobileOpen, setMobileOpen, navCounts = {} }) {
   return (
     <aside
-      className={`glass-card fixed inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-white/60 p-5 transition-transform duration-300 lg:static lg:translate-x-0 ${
+      className={`glass-card fixed inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-white/60 p-4 sm:p-5 transition-transform duration-300 lg:static lg:translate-x-0 ${
         isMobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 sm:mb-8 flex items-center justify-between">
         <div>
           <AppLogo />
-          <h1 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">Khata without the khata book</h1>
+          <h1 className="mt-2 sm:mt-3 text-base sm:text-xl md:text-2xl font-semibold text-slate-900">Khata without the khata book</h1>
         </div>
-        <button className="rounded-full border border-slate-200 px-3 py-1 text-sm lg:hidden" onClick={() => setMobileOpen(false)}>
+        <button className="rounded-full border border-slate-200 px-2.5 sm:px-3 py-1 text-xs sm:text-sm lg:hidden" onClick={() => setMobileOpen(false)}>
           Close
         </button>
       </div>
 
-      <nav className="space-y-2">
+      <nav className="space-y-1 sm:space-y-2">
         {navItems.map((item) => (
           <button
             key={item.id}
@@ -34,7 +34,7 @@ export function Sidebar({ activeView, setActiveView, isMobileOpen, setMobileOpen
               setActiveView(item.id);
               setMobileOpen(false);
             }}
-            className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition ${
+            className={`flex w-full items-center justify-between rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2 sm:py-3 text-left text-sm sm:text-base transition ${
               activeView === item.id
                 ? 'bg-teal-700 text-white shadow-lg shadow-teal-900/20'
                 : 'bg-white/60 text-slate-700 hover:bg-white'
@@ -48,9 +48,9 @@ export function Sidebar({ activeView, setActiveView, isMobileOpen, setMobileOpen
         ))}
       </nav>
 
-      <div className="mt-8 rounded-3xl bg-slate-900 p-5 text-white">
-        <p className="text-sm font-semibold">Offline support enabled</p>
-        <p className="mt-2 text-sm text-slate-300">
+      <div className="mt-6 sm:mt-8 rounded-2xl sm:rounded-3xl bg-slate-900 p-4 sm:p-5 text-white">
+        <p className="text-xs sm:text-sm font-semibold">Offline support enabled</p>
+        <p className="mt-2 text-xs sm:text-sm text-slate-300">
           Data is mirrored in local storage so the app keeps working on low-connectivity routes.
         </p>
       </div>

@@ -4,19 +4,24 @@ import { FloatingActionButton } from './components/FloatingActionButton.jsx';
 import { MobileBottomNav } from './components/MobileBottomNav.jsx';
 import { Sidebar } from './components/Sidebar.jsx';
 import { TopBar } from './components/TopBar.jsx';
-import { demoState, ownerSeed } from './data/demoData.js';
+import { ReceiptPrintView } from './components/ReceiptPrintView.jsx';
 import { usePersistentState } from './hooks/usePersistentState.js';
 import { api } from './utils/api.js';
 import { buildAppInsights, calculateLoan, currency } from './utils/calculations.js';
 
 const SESSION_KEY = 'loan-manager-session';
-const STATE_KEY = 'loan-manager-state';
 const DashboardPage = lazy(() => import('./pages/Dashboard/DashboardPage.jsx').then((module) => ({ default: module.DashboardPage })));
 const CustomersPage = lazy(() => import('./pages/Customers/CustomersPage.jsx').then((module) => ({ default: module.CustomersPage })));
 const LoansPage = lazy(() => import('./pages/Loans/LoansPage.jsx').then((module) => ({ default: module.LoansPage })));
 const PaymentsPage = lazy(() => import('./pages/Payments/PaymentsPage.jsx').then((module) => ({ default: module.PaymentsPage })));
 const LedgerPage = lazy(() => import('./pages/Ledger/LedgerPage.jsx').then((module) => ({ default: module.LedgerPage })));
 const ReportsPage = lazy(() => import('./pages/Reports/ReportsPage.jsx').then((module) => ({ default: module.ReportsPage })));
+const EMPTY_APP_STATE = {
+  customers: [],
+  loans: [],
+  payments: [],
+  ledgerEntries: []
+};
 
 function buildCustomerFormData(customer) {
   const formData = new FormData();
@@ -75,94 +80,167 @@ function normalizeLedgerEntries(entries = []) {
     .sort((a, b) => new Date(b.transactionDate) - new Date(a.transactionDate));
 }
 
+function mapWorkspaceState(customers, loans, payments, ledgerEntries) {
+  return {
+    customers: customers.map((customer) => ({
+      id: customer._id,
+      name: customer.name,
+      phoneNumber: customer.phoneNumber,
+      address: customer.address,
+      aadhaarNumber: customer.aadhaarNumber,
+      panNumber: customer.panNumber,
+      documents: (customer.documents || []).map((document) => ({
+        id: document._id,
+        name: document.name,
+        documentType: document.documentType,
+        filePath: document.filePath
+      })),
+      createdAt: customer.createdAt
+    })),
+    loans: loans.map((loan) => ({
+      id: loan._id,
+      customerId: loan.customer?._id || loan.customer,
+      loanAmount: loan.loanAmount,
+      interestRate: loan.interestRate,
+      loanDate: loan.loanDate?.slice(0, 10),
+      duration: loan.duration,
+      durationUnit: loan.durationUnit || 'months',
+      interestType: loan.interestType,
+      status: loan.status,
+      collateral: loan.collateral || {},
+      documents: (loan.documents || []).map((document) => ({
+        id: document._id,
+        documentType: document.documentType,
+        name: document.name,
+        filePath: document.filePath
+      })),
+      signature: loan.signature || {},
+      notes: loan.notes || ''
+    })),
+    payments: payments.map((payment) => ({
+      id: payment._id,
+      loanId: payment.loan?._id || payment.loan,
+      customerId: payment.customer?._id || payment.customer,
+      paymentDate: payment.paymentDate?.slice(0, 10),
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      remainingBalance: payment.remainingBalance,
+      note: payment.note || ''
+    })),
+    ledgerEntries: normalizeLedgerEntries(
+      ledgerEntries.map((entry) => ({
+        id: entry._id,
+        customerId: entry.customer?._id || '',
+        type: entry.type,
+        amount: entry.amount,
+        debit: entry.debit,
+        credit: entry.credit,
+        balance: entry.balance,
+        transactionDate: entry.transactionDate?.slice(0, 10),
+        description: entry.description
+      }))
+    )
+  };
+}
+
 export default function App() {
   const [session, setSession] = usePersistentState(SESSION_KEY, null);
-  const [localState, setLocalState] = usePersistentState(STATE_KEY, demoState);
+  const [localState, setLocalState] = useState(EMPTY_APP_STATE);
   const [activeView, setActiveView] = useState('dashboard');
   const [isMobileOpen, setMobileOpen] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(true);
   const [notice, setNotice] = useState('');
-  const [loginForm, setLoginForm] = useState({ phone: ownerSeed.phone, password: ownerSeed.password });
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isOtpMode, setIsOtpMode] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [loginForm, setLoginForm] = useState({ name: '', phone: '', password: '' });
   const [mobileAction, setMobileAction] = useState({ view: '', target: '', nonce: 0 });
+  const [printPaymentId, setPrintPaymentId] = useState(null);
+  const [connectionState, setConnectionState] = useState({ status: 'checking', label: 'Checking connection' });
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
-  useEffect(() => {
-    api.healthCheck().then(() => setOfflineMode(false)).catch(() => setOfflineMode(true));
-  }, []);
+  async function ensureApiReady() {
+    const health = await api.healthCheck();
+    const dbConnected = health?.database?.status === 'connected';
 
-  useEffect(() => {
-    if (!session?.token || session.token === 'offline-session') {
-      return;
+    if (!dbConnected) {
+      throw new Error('MongoDB is not connected. The app is unavailable until the database reconnects.');
     }
 
-    Promise.all([
-      api.fetchCustomers(session.token),
-      api.fetchLoans(session.token),
-      api.fetchPayments(session.token),
-      api.fetchLedger(session.token)
-    ]).then(([customers, loans, payments, ledgerEntries]) => {
-      setOfflineMode(false);
-      setLocalState({
-        customers: customers.map((customer) => ({
-          id: customer._id,
-          name: customer.name,
-          phoneNumber: customer.phoneNumber,
-          address: customer.address,
-          aadhaarNumber: customer.aadhaarNumber,
-          panNumber: customer.panNumber,
-          documents: (customer.documents || []).map((document) => ({
-            id: document._id,
-            name: document.name,
-            documentType: document.documentType,
-            filePath: document.filePath
-          })),
-          createdAt: customer.createdAt
-        })),
-        loans: loans.map((loan) => ({
-          id: loan._id,
-          customerId: loan.customer?._id || loan.customer,
-          loanAmount: loan.loanAmount,
-          interestRate: loan.interestRate,
-          loanDate: loan.loanDate?.slice(0, 10),
-          duration: loan.duration,
-          durationUnit: loan.durationUnit || 'months',
-          interestType: loan.interestType,
-          status: loan.status,
-          collateral: loan.collateral || {},
-          documents: (loan.documents || []).map((document) => ({
-            id: document._id,
-            documentType: document.documentType,
-            name: document.name,
-            filePath: document.filePath
-          })),
-          signature: loan.signature || {},
-          notes: loan.notes || ''
-        })),
-        payments: payments.map((payment) => ({
-          id: payment._id,
-          loanId: payment.loan?._id || payment.loan,
-          customerId: payment.customer?._id || payment.customer,
-          paymentDate: payment.paymentDate?.slice(0, 10),
-          amount: payment.amount,
-          paymentMethod: payment.paymentMethod,
-          remainingBalance: payment.remainingBalance,
-          note: payment.note || ''
-        })),
-        ledgerEntries: normalizeLedgerEntries(
-          ledgerEntries.map((entry) => ({
-            id: entry._id,
-            customerId: entry.customer?._id || '',
-            type: entry.type,
-            amount: entry.amount,
-            debit: entry.debit,
-            credit: entry.credit,
-            balance: entry.balance,
-            transactionDate: entry.transactionDate?.slice(0, 10),
-            description: entry.description
-          }))
-        )
-      });
-    }).catch(() => setOfflineMode(true));
-  }, [session?.token, setLocalState]);
+    setConnectionState({ status: 'connected', label: 'Live MongoDB connection' });
+    return health;
+  }
+
+  async function loadWorkspace(token) {
+    await ensureApiReady();
+
+    const [owner, customers, loans, payments, ledgerEntries] = await Promise.all([
+      api.fetchProfile(token),
+      api.fetchCustomers(token),
+      api.fetchLoans(token),
+      api.fetchPayments(token),
+      api.fetchLedger(token)
+    ]);
+
+    setSession((current) => current ? { ...current, owner: { name: owner.name, phone: owner.phone, id: owner._id || owner.id } } : current);
+    setLocalState(mapWorkspaceState(customers, loans, payments, ledgerEntries));
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrap() {
+      setIsBootstrapping(true);
+
+      try {
+        await ensureApiReady();
+      } catch (error) {
+        if (!cancelled) {
+          setConnectionState({ status: 'error', label: 'Database unavailable' });
+          setNotice(error.message || 'Unable to connect to the API.');
+          setLocalState(EMPTY_APP_STATE);
+          if (session?.token) {
+            setSession(null);
+          }
+        }
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+        return;
+      }
+
+      if (!session?.token) {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+        return;
+      }
+
+      try {
+        await loadWorkspace(session.token);
+        if (!cancelled) {
+          setNotice('');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setNotice(error.message || 'Failed to load workspace.');
+          setLocalState(EMPTY_APP_STATE);
+          if (error.status === 401 || error.status === 403) {
+            setSession(null);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+      }
+    }
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
 
   const enrichedCustomers = localState.customers;
 
@@ -278,30 +356,55 @@ export default function App() {
     event.preventDefault();
 
     try {
+      await ensureApiReady();
       const response = await api.login(loginForm.phone, loginForm.password);
       setSession({ token: response.token, owner: response.owner });
-      setOfflineMode(false);
       setNotice('Logged in with live backend.');
-      return;
-    } catch {
-      if (loginForm.phone === ownerSeed.phone && loginForm.password === ownerSeed.password) {
-        setSession({ token: 'offline-session', owner: { name: ownerSeed.name, phone: ownerSeed.phone } });
-        setOfflineMode(true);
-        setNotice('Backend unavailable, continuing in offline mode with local data.');
-        return;
-      }
+      setIsOtpMode(false);
+    } catch (error) {
+      setNotice(error.message || 'Login failed. Check phone/password and API connectivity.');
     }
+  }
 
-    setNotice('Login failed. Check phone/password or start the backend API.');
+  async function handleRegister(event) {
+    event.preventDefault();
+    try {
+      await ensureApiReady();
+      const response = await api.register(loginForm.name, loginForm.phone, loginForm.password);
+      setIsOtpMode(true);
+      setNotice(response.message || 'OTP sent! Please check your phone.');
+    } catch (err) {
+      setNotice(err.message || 'Registration failed.');
+    }
+  }
+
+  async function handleVerifyOtp(event) {
+    event.preventDefault();
+    try {
+      const response = await api.verifyOtp(loginForm.phone, otpInput);
+      setLocalState(EMPTY_APP_STATE);
+      setSession({ token: response.token, owner: response.owner });
+      setNotice('Account verified successfully!');
+    } catch (err) {
+      setNotice(err.message || 'Invalid OTP. Please try again.');
+    }
   }
 
   function handleLogout() {
     setSession(null);
+    setLocalState(EMPTY_APP_STATE);
     setActiveView('dashboard');
     setNotice('');
+    setIsOtpMode(false);
+    setOtpInput('');
+    setLoginForm({ name: '', phone: '', password: '' });
   }
 
   async function saveCustomer(customer) {
+    if (!session?.token) {
+      throw new Error('Login required.');
+    }
+
     const payload = {
       ...customer,
       id: customer.id || crypto.randomUUID(),
@@ -314,16 +417,10 @@ export default function App() {
       }))
     };
 
-    if (!offlineMode && session?.token && session.token !== 'offline-session') {
-      try {
-        const formData = buildCustomerFormData(payload);
-        const response = customer.id ? await api.updateCustomer(session.token, customer.id, formData) : await api.createCustomer(session.token, formData);
-        payload.id = response._id;
-        payload.documents = (response.documents || []).map((document) => ({ id: document._id, name: document.name, filePath: document.filePath }));
-      } catch {
-        setOfflineMode(true);
-      }
-    }
+    const formData = buildCustomerFormData(payload);
+    const response = customer.id ? await api.updateCustomer(session.token, customer.id, formData) : await api.createCustomer(session.token, formData);
+    payload.id = response._id;
+    payload.documents = (response.documents || []).map((document) => ({ id: document._id, name: document.name, filePath: document.filePath }));
 
     setLocalState((current) => ({
       ...current,
@@ -332,13 +429,11 @@ export default function App() {
   }
 
   async function deleteCustomer(customerId) {
-    if (!offlineMode && session?.token && session.token !== 'offline-session') {
-      try {
-        await api.deleteCustomer(session.token, customerId);
-      } catch {
-        setOfflineMode(true);
-      }
+    if (!session?.token) {
+      throw new Error('Login required.');
     }
+
+    await api.deleteCustomer(session.token, customerId);
 
     setLocalState((current) => ({
       ...current,
@@ -350,6 +445,10 @@ export default function App() {
   }
 
   async function createLoan(form) {
+    if (!session?.token) {
+      throw new Error('Login required.');
+    }
+
     const loan = {
       id: crypto.randomUUID(),
       customerId: form.customerId,
@@ -375,17 +474,11 @@ export default function App() {
       notes: form.notes
     };
 
-    if (!offlineMode && session?.token && session.token !== 'offline-session') {
-      try {
-        const response = await api.createLoan(session.token, buildLoanFormData(form));
-        loan.id = response._id;
-        loan.documents = (response.documents || []).map((document) => ({ id: document._id, documentType: document.documentType, name: document.name, filePath: document.filePath }));
-        loan.signature = response.signature || loan.signature;
-        loan.collateral = response.collateral || loan.collateral;
-      } catch {
-        setOfflineMode(true);
-      }
-    }
+    const response = await api.createLoan(session.token, buildLoanFormData(form));
+    loan.id = response._id;
+    loan.documents = (response.documents || []).map((document) => ({ id: document._id, documentType: document.documentType, name: document.name, filePath: document.filePath }));
+    loan.signature = response.signature || loan.signature;
+    loan.collateral = response.collateral || loan.collateral;
 
     setLocalState((current) => ({
       ...current,
@@ -407,6 +500,10 @@ export default function App() {
   }
 
   async function createPayment(form) {
+    if (!session?.token) {
+      throw new Error('Login required.');
+    }
+
     const selectedLoan = enrichedLoans.find((loan) => loan.id === form.loanId);
     if (!selectedLoan) return;
 
@@ -423,21 +520,15 @@ export default function App() {
       note: form.note
     };
 
-    if (!offlineMode && session?.token && session.token !== 'offline-session') {
-      try {
-        const response = await api.createPayment(session.token, {
-          loan: form.loanId,
-          paymentDate: payment.paymentDate,
-          amount: payment.amount,
-          paymentMethod: payment.paymentMethod,
-          note: payment.note
-        });
-        payment.id = response._id;
-        payment.remainingBalance = response.remainingBalance;
-      } catch {
-        setOfflineMode(true);
-      }
-    }
+    const response = await api.createPayment(session.token, {
+      loan: form.loanId,
+      paymentDate: payment.paymentDate,
+      amount: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      note: payment.note
+    });
+    payment.id = response._id;
+    payment.remainingBalance = response.remainingBalance;
 
     setLocalState((current) => ({
       ...current,
@@ -460,6 +551,10 @@ export default function App() {
   }
 
   async function createLedgerEntry(form) {
+    if (!session?.token) {
+      throw new Error('Login required.');
+    }
+
     const baseEntries = normalizeLedgerEntries(localState.ledgerEntries);
     const currentBalance = Number(baseEntries[0]?.balance || 0);
     const debit = form.type === 'debit' ? Number(form.amount) : 0;
@@ -476,23 +571,17 @@ export default function App() {
       description: form.description
     };
 
-    if (!offlineMode && session?.token && session.token !== 'offline-session') {
-      try {
-        const response = await api.createLedgerEntry(session.token, {
-          customer: form.customerId || null,
-          type: entry.type,
-          amount: entry.amount,
-          transactionDate: entry.transactionDate,
-          description: entry.description
-        });
-        entry.id = response._id;
-        entry.balance = response.balance ?? entry.balance;
-        entry.debit = response.debit ?? entry.debit;
-        entry.credit = response.credit ?? entry.credit;
-      } catch {
-        setOfflineMode(true);
-      }
-    }
+    const response = await api.createLedgerEntry(session.token, {
+      customer: form.customerId || null,
+      type: entry.type,
+      amount: entry.amount,
+      transactionDate: entry.transactionDate,
+      description: entry.description
+    });
+    entry.id = response._id;
+    entry.balance = response.balance ?? entry.balance;
+    entry.debit = response.debit ?? entry.debit;
+    entry.credit = response.credit ?? entry.credit;
 
     setLocalState((current) => ({ ...current, ledgerEntries: normalizeLedgerEntries([entry, ...current.ledgerEntries]) }));
   }
@@ -503,24 +592,71 @@ export default function App() {
         <div className="glass-card w-full max-w-md rounded-[36px] border border-white/60 p-8">
           <AppLogo />
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">Owner authentication</p>
-          <h1 className="mt-3 text-4xl font-semibold text-slate-900">Secure loan command center</h1>
-          <p className="mt-3 text-sm text-slate-600">Login as the owner to manage borrowers, track EMIs, maintain khata entries and review reports.</p>
-          <form className="mt-8 grid gap-4" onSubmit={handleLogin}>
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Phone number
-              <input value={loginForm.phone} onChange={(event) => setLoginForm((current) => ({ ...current, phone: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
-            </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Password
-              <input type="password" value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
-            </label>
-            <button className="rounded-2xl bg-teal-700 px-5 py-3 font-medium text-white" type="submit">Login</button>
+          <h1 className="mt-3 text-4xl font-semibold text-slate-900">{isLoginMode ? 'Secure loan command center' : 'Create an admin account'}</h1>
+          <p className="mt-3 text-sm text-slate-600">
+            {isLoginMode 
+              ? 'Login as the owner to manage borrowers, track EMIs, maintain khata entries and review reports.' 
+              : 'Register as an owner to securely manage your own separate lending portfolio.'}
+          </p>
+          <form className="mt-8 grid gap-4" onSubmit={isOtpMode ? handleVerifyOtp : (isLoginMode ? handleLogin : handleRegister)}>
+            {isOtpMode ? (
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                Enter your real OTP
+                <input required value={otpInput} onChange={(event) => setOtpInput(event.target.value)} placeholder="000000" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-xl tracking-widest" />
+              </label>
+            ) : (
+              <>
+                {!isLoginMode && (
+                  <label className="grid gap-2 text-sm font-medium text-slate-700">
+                    Full Name
+                    <input required value={loginForm.name} onChange={(event) => setLoginForm((current) => ({ ...current, name: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
+                  </label>
+                )}
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Phone number
+                  <input required value={loginForm.phone} onChange={(event) => setLoginForm((current) => ({ ...current, phone: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Password
+                  <input required type="password" value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
+                </label>
+              </>
+            )}
+            <button className="rounded-2xl bg-teal-700 px-5 py-3 font-medium text-white" type="submit">
+              {isOtpMode ? 'Verify & Continue' : (isLoginMode ? 'Login' : 'Sign Up')}
+            </button>
+            {!isOtpMode && (
+              <div className="text-center mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsLoginMode(!isLoginMode);
+                    setIsOtpMode(false);
+                    setNotice('');
+                  }} 
+                  className="text-sm font-medium text-teal-700 hover:text-teal-800 transition"
+                >
+                  {isLoginMode ? "Don't have an account? Sign up instead" : "Already have an account? Log in"}
+                </button>
+              </div>
+            )}
+            {isOtpMode && (
+              <div className="text-center mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsOtpMode(false)} 
+                  className="text-sm font-medium text-slate-500 hover:text-slate-700 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </form>
-          <div className="mt-6 rounded-2xl bg-slate-900 p-4 text-sm text-slate-200">
-            <p>Default local login: {ownerSeed.phone} / {ownerSeed.password}</p>
-            <p className="mt-1 text-slate-400">Use this fallback when testing the PWA before the backend is running.</p>
+          <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-sm text-emerald-900">
+            <p className="font-semibold">Connection status: {connectionState.label}</p>
+            <p className="mt-1 text-emerald-800">This app now requires the live API and MongoDB connection for all login and data operations.</p>
           </div>
-          {notice ? <p className="mt-4 text-sm text-slate-600">{notice}</p> : null}
+          {notice ? <p className="mt-4 text-sm font-medium text-rose-600 text-center">{notice}</p> : null}
         </div>
       </main>
     );
@@ -530,7 +666,7 @@ export default function App() {
     dashboard: <DashboardPage dashboard={insights.dashboard} reminders={insights.reminders} recentPayments={insights.dashboard.recentPayments} />,
     customers: <CustomersPage customers={enrichedCustomers} customerProfiles={customerProfiles} onSaveCustomer={saveCustomer} onDeleteCustomer={deleteCustomer} mobileIntent={mobileAction.view === 'customers' ? mobileAction.target : ''} mobileIntentNonce={mobileAction.nonce} />,
     loans: <LoansPage customers={enrichedCustomers} loans={enrichedLoans} onCreateLoan={createLoan} mobileIntent={mobileAction.view === 'loans' ? mobileAction.target : ''} mobileIntentNonce={mobileAction.nonce} />,
-    payments: <PaymentsPage loans={enrichedLoans} payments={enrichedPayments} onCreatePayment={createPayment} mobileIntent={mobileAction.view === 'payments' ? mobileAction.target : ''} mobileIntentNonce={mobileAction.nonce} />,
+    payments: <PaymentsPage loans={enrichedLoans} payments={enrichedPayments} onCreatePayment={createPayment} onPrintReceipt={setPrintPaymentId} mobileIntent={mobileAction.view === 'payments' ? mobileAction.target : ''} mobileIntentNonce={mobileAction.nonce} />,
     ledger: <LedgerPage customers={enrichedCustomers} ledgerEntries={enrichedLedger} onCreateLedgerEntry={createLedgerEntry} mobileIntent={mobileAction.view === 'ledger' ? mobileAction.target : ''} mobileIntentNonce={mobileAction.nonce} />,
     reports: <ReportsPage reports={insights.reports} />
   };
@@ -540,22 +676,27 @@ export default function App() {
       <div className="hidden lg:block">
         <Sidebar activeView={activeView} setActiveView={setActiveView} isMobileOpen={isMobileOpen} setMobileOpen={setMobileOpen} navCounts={navCounts} />
       </div>
-      <main className="p-3 pb-28 sm:p-6 lg:p-8 lg:pb-8">
-        <div className="sticky top-3 z-20 mobile-screen-enter">
-          <TopBar owner={session.owner} offlineMode={offlineMode} pendingSyncCount={offlineMode ? localState.customers.length + localState.loans.length + localState.payments.length : 0} setMobileOpen={setMobileOpen} onLogout={handleLogout} />
+      <main className="p-2 pb-16 sm:p-4 lg:p-8 lg:pb-8 md:p-6 md:pb-8">
+        <div className="sticky top-2 sm:top-3 z-20 mobile-screen-enter">
+          <TopBar owner={session.owner} connectionLabel={connectionState.label} setMobileOpen={setMobileOpen} onLogout={handleLogout} />
         </div>
         {notice ? <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div> : null}
+        {isBootstrapping ? (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600">
+            Syncing workspace with the live database...
+          </div>
+        ) : null}
         {activeView === 'dashboard' ? (
-          <section className="mb-4 rounded-[24px] bg-slate-900 p-4 text-white mobile-screen-enter sm:mb-6 sm:rounded-[32px] sm:p-6">
-            <p className="text-sm uppercase tracking-[0.18em] text-teal-200">Portfolio pulse</p>
-            <div className="mt-3 flex flex-wrap items-end justify-between gap-3 sm:mt-4 sm:gap-4">
-              <div>
-                <h2 className="text-2xl font-semibold sm:text-3xl">Pending collections {currency.format(insights.dashboard.pendingLoanAmount)}</h2>
-                <p className="mt-2 max-w-2xl text-sm text-slate-300">Search customers, issue loans, record payments, and track balances from one mobile-friendly workspace.</p>
+          <section className="mb-3 sm:mb-4 md:mb-6 glass-card rounded-xl sm:rounded-[24px] md:rounded-[28px] lg:rounded-[32px] border border-white/60 p-3 sm:p-4 md:p-5 lg:p-6 mobile-screen-enter bg-gradient-to-br from-teal-50 to-emerald-50/50">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.18em] text-teal-700">Portfolio pulse</p>
+            <div className="mt-2 sm:mt-3 md:mt-4 flex flex-col lg:flex-row items-start lg:items-end justify-between gap-3 sm:gap-4">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-2xl md:text-3xl font-semibold text-slate-900">Pending collections <span className="text-emerald-700">{currency.format(insights.dashboard.pendingLoanAmount)}</span></h2>
+                <p className="mt-1 sm:mt-2 max-w-2xl text-xs sm:text-sm text-slate-600">Search customers, issue loans, record payments, and track balances from one mobile-friendly workspace.</p>
               </div>
-              <div className="w-full rounded-3xl bg-white/10 px-4 py-3 sm:w-auto sm:px-5 sm:py-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Installable PWA</p>
-                <p className="mt-1 text-sm text-slate-100">Add this app to the home screen for faster access on phone.</p>
+              <div className="w-full lg:w-auto rounded-xl sm:rounded-2xl border border-teal-100 bg-white/60 px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 md:py-4 lg:rounded-3xl lg:px-5 lg:py-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-teal-700">Installable PWA</p>
+                <p className="mt-1 text-xs sm:text-sm text-slate-600">Add this app to the home screen for faster access.</p>
               </div>
             </div>
           </section>
@@ -581,6 +722,7 @@ export default function App() {
           setMobileAction({ view: '', target: '', nonce: Date.now() });
         }}
       />
+      <ReceiptPrintView payment={enrichedPayments.find(p => p.id === printPaymentId)} owner={session.owner} />
     </div>
   );
 }

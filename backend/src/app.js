@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import path from 'path';
+import { getDatabaseHealth, isDatabaseConnected } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
@@ -37,7 +38,22 @@ export function createApp() {
   });
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    const database = getDatabaseHealth();
+    const ok = isDatabaseConnected();
+
+    res.status(ok ? 200 : 503).json({
+      status: ok ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      database,
+    });
+  });
+
+  app.use('/api', (req, res, next) => {
+    if (!isDatabaseConnected()) {
+      return res.status(503).json({ message: 'Database connection is unavailable. Please retry shortly.' });
+    }
+
+    return next();
   });
 
   app.use('/api/auth', authRoutes);

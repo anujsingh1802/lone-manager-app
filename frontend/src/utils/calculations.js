@@ -146,15 +146,16 @@ export function buildAppInsights({ customers, loans, payments, ledgerEntries }) 
     .flatMap((loan) => {
       const dueDate = new Date(loan.snapshot.dueDate);
       const diffDays = Math.ceil((dueDate - new Date()) / DAY_MS);
+      const customerPhone = loan.customerPhoneNumber;
 
       if (loan.snapshot.isOverdue) {
-        return [{ type: 'overdue', label: 'Overdue', message: `${loan.customerName} is overdue`, dueDate }];
+        return [{ type: 'overdue', label: 'Overdue', message: `${loan.customerName} is overdue`, dueDate, phone: customerPhone, remainingBalance: loan.snapshot.remainingBalance }];
       }
       if (diffDays >= 0 && diffDays <= 3) {
-        return [{ type: 'upcoming', label: 'EMI due', message: `${loan.customerName} payment due in ${diffDays} day(s)`, dueDate }];
+        return [{ type: 'upcoming', label: 'EMI due', message: `${loan.customerName} payment due in ${diffDays} day(s)`, dueDate, phone: customerPhone, remainingBalance: loan.snapshot.remainingBalance }];
       }
       if (loan.snapshot.remainingBalance > 0) {
-        return [{ type: 'pending', label: 'Pending', message: `${loan.customerName} still owes ${currency.format(loan.snapshot.remainingBalance)}`, dueDate }];
+        return [{ type: 'pending', label: 'Pending', message: `${loan.customerName} still owes ${currency.format(loan.snapshot.remainingBalance)}`, dueDate, phone: customerPhone, remainingBalance: loan.snapshot.remainingBalance }];
       }
       return [];
     })

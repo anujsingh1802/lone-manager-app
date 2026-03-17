@@ -183,6 +183,35 @@ export function LoansPage({ customers, loans, onCreateLoan, mobileIntent, mobile
               <option value="daily">Daily Interest</option>
             </select>
           </label>
+          {form.loanAmount && form.interestRate && form.duration ? (() => {
+            const principal = Number(form.loanAmount);
+            const rate = Number(form.interestRate) / 100;
+            const time = Number(form.duration);
+            let interest = 0;
+            if (form.interestType === 'monthly') interest = principal * rate * time;
+            else if (form.interestType === 'yearly' || form.interestType === 'simple') interest = principal * rate * (form.durationUnit === 'months' ? time / 12 : time);
+            else interest = principal * rate * time; // fallback simple
+            const total = principal + interest;
+            const emi = total / (form.durationUnit === 'months' ? time : time * 12);
+            return (
+              <div className="rounded-2xl bg-teal-50 p-4 mt-2">
+                <div className="flex justify-between text-sm text-teal-800 mb-1">
+                  <span>Estimated Interest</span>
+                  <span className="font-semibold">{currency.format(interest)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-teal-800 mb-1">
+                  <span>Total Payable</span>
+                  <span className="font-semibold">{currency.format(total)}</span>
+                </div>
+                {form.durationUnit === 'months' || form.durationUnit === 'years' ? (
+                  <div className="flex justify-between text-sm text-teal-800 font-bold border-t border-teal-200 pt-2 mt-2">
+                    <span>Suggested EMI</span>
+                    <span>{currency.format(emi)} / mo</span>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })() : null}
           </div>
 
           <div className={`${formSection !== 'collateral' ? 'hidden xl:block' : ''} rounded-[24px] border border-slate-200 bg-slate-50/80 p-4`}>
@@ -284,7 +313,10 @@ export function LoansPage({ customers, loans, onCreateLoan, mobileIntent, mobile
               <button
                 key={loan.id}
                 type="button"
-                onClick={() => setSelectedLoanId(loan.id)}
+                onClick={() => {
+                  setSelectedLoanId(loan.id);
+                  setMobileTab('details');
+                }}
                 className={`w-full rounded-[24px] border p-4 text-left ${selectedLoan?.id === loan.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-100 bg-white/70'}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -339,6 +371,23 @@ export function LoansPage({ customers, loans, onCreateLoan, mobileIntent, mobile
                 <p className="text-sm text-slate-500">Remaining balance</p>
                 <p className="mt-1 font-semibold text-slate-900">{currency.format(selectedLoan.snapshot.remainingBalance)}</p>
                 <p className="text-sm text-slate-500">Status {selectedLoan.snapshot.isOverdue ? 'Overdue' : selectedLoan.status}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 sm:col-span-2 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Actions</p>
+                  <p className="mt-1 font-semibold text-slate-900">Send Reminder</p>
+                </div>
+                {(() => {
+                  const remaining = selectedLoan.snapshot.remainingBalance;
+                  const waText = encodeURIComponent(`Hello ${selectedLoan.customerName}, your loan balance of ${currency.format(remaining)} is pending. Please arrange the payment.`);
+                  const phoneStr = selectedLoan.customerPhoneNumber ? selectedLoan.customerPhoneNumber.replace(/\D/g, '') : '';
+                  const waLink = phoneStr ? `https://wa.me/91${phoneStr}?text=${waText}` : null;
+                  return waLink ? (
+                    <a href={waLink} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 font-semibold text-white transition hover:scale-105">
+                      WhatsApp
+                    </a>
+                  ) : <span className="text-sm text-slate-400">No Phone</span>;
+                })()}
               </div>
             </div>
             {selectedLoan.collateral?.image?.filePath ? <img src={selectedLoan.collateral.image.filePath} alt="Collateral" className="mt-4 h-48 w-full rounded-[24px] object-cover" /> : null}

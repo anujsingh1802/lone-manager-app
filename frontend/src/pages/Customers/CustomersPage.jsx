@@ -153,29 +153,32 @@ export function CustomersPage({ customers, customerProfiles, onSaveCustomer, onD
             {filteredCustomers.map((customer) => {
               const profile = customerProfiles[customer.id];
               return (
-                <div key={customer.id} className={`rounded-[24px] border p-4 ${selectedCustomer?.id === customer.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-100 bg-white/70'}`}>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <button type="button" className="text-left" onClick={() => setSelectedCustomerId(customer.id)}>
-                      <p className="text-lg font-semibold text-slate-900">{customer.name}</p>
+                <div key={customer.id} className={`rounded-[24px] border p-4 overflow-x-auto no-scrollbar ${selectedCustomer?.id === customer.id ? 'border-teal-300 bg-teal-50/60' : 'border-slate-100 bg-white/70'}`}>
+                  <div className="flex flex-wrap items-start md:items-center justify-between gap-4">
+                    <button type="button" className="text-left flex-1 min-w-[200px]" onClick={() => {
+                      setSelectedCustomerId(customer.id);
+                      setMobileTab('profile');
+                    }}>
+                      <p className="text-lg font-semibold text-slate-900 break-words">{customer.name}</p>
                       <p className="text-sm text-slate-500">{customer.phoneNumber}</p>
-                      <p className="mt-2 text-sm text-slate-600">{customer.address}</p>
-                      <p className="mt-2 text-xs text-slate-400">Added {formatDate(customer.createdAt)}</p>
+                      <p className="mt-2 text-sm text-slate-600 break-words line-clamp-2" title={customer.address}>{customer.address}</p>
+                      <p className="mt-2 text-xs text-slate-400 whitespace-nowrap">Added {formatDate(customer.createdAt)}</p>
                     </button>
-                    <div className="flex gap-2">
-                      <button className="rounded-full border border-slate-200 px-4 py-2 text-sm" onClick={() => setForm(customer)} type="button">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                      <button className="flex-1 sm:flex-none justify-center rounded-full border border-slate-200 px-4 py-2 text-sm" onClick={() => setForm(customer)} type="button">
                         Edit
                       </button>
-                      <button className="rounded-full bg-rose-600 px-4 py-2 text-sm text-white" onClick={() => onDeleteCustomer(customer.id)} type="button">
+                      <button className="flex-1 sm:flex-none justify-center rounded-full bg-rose-600 px-4 py-2 text-sm text-white" onClick={() => onDeleteCustomer(customer.id)} type="button">
                         Delete
                       </button>
                     </div>
                   </div>
-                  <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                    <p>Aadhaar: {customer.aadhaarNumber || '-'}</p>
-                    <p>PAN: {customer.panNumber || '-'}</p>
-                    <p>Loans: {profile?.summary.totalLoans || 0}</p>
-                    <p>Outstanding: {currency.format(profile?.summary.totalOutstanding || 0)}</p>
-                    <p className="sm:col-span-2">Documents: {customer.documents?.map((doc) => doc.name).join(', ') || 'No docs uploaded'}</p>
+                  <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                    <p className="break-all"><span className="font-medium text-slate-700">Aadhaar:</span> {customer.aadhaarNumber || '-'}</p>
+                    <p className="break-all"><span className="font-medium text-slate-700">PAN:</span> {customer.panNumber || '-'}</p>
+                    <p><span className="font-medium text-slate-700">Loans:</span> {profile?.summary.totalLoans || 0}</p>
+                    <p><span className="font-medium text-slate-700">Outstanding:</span> {currency.format(profile?.summary.totalOutstanding || 0)}</p>
+                    <p className="sm:col-span-2 break-words line-clamp-2" title={customer.documents?.map((doc) => doc.name).join(', ')}><span className="font-medium text-slate-700">Documents:</span> {customer.documents?.map((doc) => doc.name).join(', ') || 'No docs uploaded'}</p>
                   </div>
                 </div>
               );
@@ -192,7 +195,7 @@ export function CustomersPage({ customers, customerProfiles, onSaveCustomer, onD
                 <h3 className="text-2xl font-semibold text-slate-900">{selectedCustomer.name}</h3>
                 <p className="text-sm text-slate-500">{selectedCustomer.phoneNumber}</p>
               </div>
-              <div className="rounded-[24px] bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <div className="rounded-[24px] bg-slate-50 px-4 py-3 text-sm text-slate-600 w-full sm:w-auto whitespace-nowrap">
                 Balance left <span className="font-semibold text-slate-900">{currency.format(selectedProfile.summary.totalOutstanding)}</span>
               </div>
             </div>
@@ -222,22 +225,22 @@ export function CustomersPage({ customers, customerProfiles, onSaveCustomer, onD
                   <p className="mb-3 font-semibold text-slate-900">Loan history</p>
                   <div className="space-y-3">
                     {selectedProfile.loans.map((loan) => (
-                      <div key={loan.id} className="rounded-2xl bg-white px-4 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
+                      <div key={loan.id} className="rounded-2xl bg-white px-4 py-3 overflow-x-auto no-scrollbar min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex-1 min-w-[140px]">
                             <p className="font-semibold text-slate-900">{currency.format(loan.loanAmount)}</p>
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-slate-500 min-w-0 truncate" title={`${loan.interestRate}% ${loan.interestType} for ${loan.duration} ${loan.durationUnit}`}>
                               {loan.interestRate}% {loan.interestType} for {loan.duration} {loan.durationUnit}
                             </p>
                           </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${loan.snapshot.isOverdue ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${loan.snapshot.isOverdue ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
                             {loan.snapshot.isOverdue ? 'Overdue' : loan.status}
                           </span>
                         </div>
-                        <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
-                          <p>Issued: {formatDate(loan.loanDate)}</p>
-                          <p>Paid: {currency.format(loan.snapshot.paidAmount)}</p>
-                          <p>Left: {currency.format(loan.snapshot.remainingBalance)}</p>
+                        <div className="mt-3 grid gap-2 text-sm text-slate-600 grid-cols-1 sm:grid-cols-3">
+                          <p className="whitespace-nowrap">Issued: {formatDate(loan.loanDate)}</p>
+                          <p className="whitespace-nowrap">Paid: {currency.format(loan.snapshot.paidAmount)}</p>
+                          <p className="whitespace-nowrap">Left: {currency.format(loan.snapshot.remainingBalance)}</p>
                         </div>
                       </div>
                     ))}
@@ -249,12 +252,12 @@ export function CustomersPage({ customers, customerProfiles, onSaveCustomer, onD
                   <p className="mb-3 font-semibold text-slate-900">Payment history</p>
                   <div className="space-y-3">
                     {selectedProfile.payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                        <div>
+                      <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 overflow-x-auto no-scrollbar min-w-0">
+                        <div className="flex-1 min-w-[140px]">
                           <p className="font-medium text-slate-900">{formatDate(payment.paymentDate)}</p>
-                          <p className="text-sm text-slate-500">{payment.paymentMethod} • {payment.note || 'No note'}</p>
+                          <p className="text-sm text-slate-500 min-w-0 truncate" title={`${payment.paymentMethod} • ${payment.note || 'No note'}`}>{payment.paymentMethod} • {payment.note || 'No note'}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right whitespace-nowrap">
                           <p className="font-semibold text-emerald-700">{currency.format(payment.amount)}</p>
                           <p className="text-xs text-slate-400">Left {currency.format(payment.remainingBalance || 0)}</p>
                         </div>
@@ -270,13 +273,13 @@ export function CustomersPage({ customers, customerProfiles, onSaveCustomer, onD
                   <p className="mb-3 font-semibold text-slate-900">All activity</p>
                   <div className="space-y-3">
                     {activityFeed.map((activity) => (
-                      <div key={activity.id} className="rounded-2xl bg-white px-4 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-slate-900">{activity.title}</p>
-                            <p className="text-sm text-slate-500">{activity.description}</p>
+                      <div key={activity.id} className="rounded-2xl bg-white px-4 py-3 overflow-x-auto no-scrollbar min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex-1 min-w-[140px]">
+                            <p className="font-medium text-slate-900 truncate" title={activity.title}>{activity.title}</p>
+                            <p className="text-sm text-slate-500 truncate" title={activity.description}>{activity.description}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right whitespace-nowrap">
                             <p className={`font-semibold ${activity.tone === 'credit' ? 'text-emerald-700' : 'text-rose-700'}`}>
                               {currency.format(activity.amount || 0)}
                             </p>

@@ -1,3 +1,5 @@
+import { sendReminderSms } from './smsService.js';
+
 export function buildLoanReminders(loan, snapshot) {
   if (!loan || !snapshot) return [];
 
@@ -44,14 +46,21 @@ export function buildLoanReminders(loan, snapshot) {
 }
 
 export async function dispatchReminder(reminder, customer) {
-  const provider = process.env.REMINDER_PROVIDER || 'mock';
+  const targetPhone = customer?.phoneNumber || reminder?.phoneNumber || '';
+
+  if (!targetPhone) {
+    throw new Error('Customer phone number is required to send a reminder.');
+  }
+
+  const smsResult = await sendReminderSms(targetPhone, reminder.message);
 
   return {
-    provider,
-    status: 'queued',
-    channel: reminder.channel,
-    customer: customer?.phoneNumber || '',
+    provider: 'twilio',
+    status: smsResult.status || 'queued',
+    channel: reminder.channel || 'sms',
+    customer: targetPhone,
     message: reminder.message,
+    sid: smsResult.sid,
     createdAt: new Date(),
   };
 }

@@ -9,15 +9,16 @@ import {
 } from '../controllers/customerController.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { upload } from '../middleware/uploadMiddleware.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
 router.use(requireAuth);
-router.get('/', listCustomers);
-router.post('/', upload.array('documents', 5), createCustomer);
-router.get('/:id/profile', getCustomerProfile);
-router.get('/:id', getCustomer);
-router.put('/:id', upload.array('documents', 5), updateCustomer);
-router.delete('/:id', deleteCustomer);
+router.get('/', asyncHandler(listCustomers));
+router.post('/', upload.array('documents', 5), asyncHandler(createCustomer));
+router.get('/:id/profile', asyncHandler(getCustomerProfile));
+router.get('/:id', asyncHandler(getCustomer));
+router.put('/:id', upload.array('documents', 5), asyncHandler(updateCustomer));
+router.delete('/:id', asyncHandler(deleteCustomer));
 
 export default router;

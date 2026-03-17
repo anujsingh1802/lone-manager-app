@@ -4,7 +4,10 @@ async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, options);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.message || 'Request failed');
+    const error = new Error(body.message || 'Request failed');
+    error.status = response.status;
+    error.body = body;
+    throw error;
   }
   if (response.status === 204) {
     return null;
@@ -14,11 +17,25 @@ async function request(path, options = {}) {
 
 export const api = {
   healthCheck: () => request('/health'),
+  fetchProfile: (token) =>
+    request('/auth/me', { headers: { Authorization: `Bearer ${token}` } }),
   login: (phone, password) =>
     request('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, password })
+    }),
+  register: (name, phone, password) =>
+    request('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, password })
+    }),
+  verifyOtp: (phone, otp) =>
+    request('/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp })
     }),
   fetchCustomers: (token) =>
     request('/customers', { headers: { Authorization: `Bearer ${token}` } }),
