@@ -1,7 +1,19 @@
+import { AppLogo } from './AppLogo.jsx';
+
 export function TopBar({ owner, offlineMode, pendingSyncCount, setMobileOpen, onLogout }) {
   return (
     <div className="glass-card mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/60 p-3 sm:mb-6 sm:rounded-[28px] sm:p-4">
       <div className="flex items-center gap-3">
+        <button
+          className="rounded-2xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-700 lg:hidden"
+          onClick={() => setMobileOpen(true)}
+          type="button"
+        >
+          Menu
+        </button>
+        <div className="hidden sm:block">
+          <AppLogo compact />
+        </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-teal-700">Owner workspace</p>
           <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{owner?.name || 'Loan Owner'}</h2>

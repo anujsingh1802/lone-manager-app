@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { AppLogo } from './components/AppLogo.jsx';
 import { FloatingActionButton } from './components/FloatingActionButton.jsx';
 import { MobileBottomNav } from './components/MobileBottomNav.jsx';
 import { Sidebar } from './components/Sidebar.jsx';
@@ -500,6 +501,7 @@ export default function App() {
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
         <div className="glass-card w-full max-w-md rounded-[36px] border border-white/60 p-8">
+          <AppLogo />
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">Owner authentication</p>
           <h1 className="mt-3 text-4xl font-semibold text-slate-900">Secure loan command center</h1>
           <p className="mt-3 text-sm text-slate-600">Login as the owner to manage borrowers, track EMIs, maintain khata entries and review reports.</p>

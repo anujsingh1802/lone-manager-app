@@ -1,3 +1,5 @@
+import { AppLogo } from './AppLogo.jsx';
+
 const navItems = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'customers', label: 'Customers' },
@@ -16,8 +18,8 @@ export function Sidebar({ activeView, setActiveView, isMobileOpen, setMobileOpen
     >
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-teal-700">Loan Manager</p>
-          <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Khata without the khata book</h1>
+          <AppLogo />
+          <h1 className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">Khata without the khata book</h1>
         </div>
         <button className="rounded-full border border-slate-200 px-3 py-1 text-sm lg:hidden" onClick={() => setMobileOpen(false)}>
           Close
