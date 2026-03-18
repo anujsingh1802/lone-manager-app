@@ -19,6 +19,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_URL
-        sync: false
+        value: https://lone-manager-app-frontend-tecy-git-main-anujs-projects-63d20f84.vercel.app
       - key: MONGODB_URI
         sync: false

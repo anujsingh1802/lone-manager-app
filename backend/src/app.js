@@ -15,9 +15,28 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 export function createApp() {
   const app = express();
 
+  const allowedOrigins = [];
+  
+  // Add configured URLs from CLIENT_URL
+  if (process.env.CLIENT_URL) {
+    allowedOrigins.push(...process.env.CLIENT_URL.split(','));
+  }
+  
+  // Allow localhost for development
+  allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
+  
+  // Allow all Vercel deployments pattern
+  const vercelPattern = /^https:\/\/.*\.vercel\.app$/;
+  
   app.use(
     cors({
-      origin: process.env.CLIENT_URL?.split(',') || ['http://localhost:5173'],
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS not allowed'));
+        }
+      },
       credentials: true,
     })
   );
