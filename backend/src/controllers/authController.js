@@ -173,6 +173,16 @@ export async function verifyOTP(req, res) {
 }
 
 export async function getProfile(req, res) {
+  if (req.user.sub === 'demo123') {
+    return res.json({
+      _id: 'demo123',
+      id: 'demo123',
+      name: req.user.name,
+      phone: req.user.phone,
+      isVerified: true
+    });
+  }
+
   const owner = await Owner.findById(req.user.sub).select('-passwordHash');
   if (!owner) {
     return res.status(404).json({ message: 'Owner not found.' });
