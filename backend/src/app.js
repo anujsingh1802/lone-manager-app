@@ -23,7 +23,7 @@ export function createApp() {
   }
   
   // Allow localhost for development
-  allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
+  allowedOrigins.push('http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000');
   
   // Allow all Vercel deployments pattern
   const vercelPattern = /^https:\/\/.*\.vercel\.app$/;

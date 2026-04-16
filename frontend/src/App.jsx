@@ -9,7 +9,7 @@ import { usePersistentState } from './hooks/usePersistentState.js';
 import { api } from './utils/api.js';
 import { buildAppInsights, calculateLoan, currency } from './utils/calculations.js';
 
-const SESSION_KEY = 'loan-manager-session';
+const SESSION_KEY = 'loan-manager-session-prototype';
 const DashboardPage = lazy(() => import('./pages/Dashboard/DashboardPage.jsx').then((module) => ({ default: module.DashboardPage })));
 const CustomersPage = lazy(() => import('./pages/Customers/CustomersPage.jsx').then((module) => ({ default: module.CustomersPage })));
 const LoansPage = lazy(() => import('./pages/Loans/LoansPage.jsx').then((module) => ({ default: module.LoansPage })));
@@ -144,7 +144,7 @@ function mapWorkspaceState(customers, loans, payments, ledgerEntries) {
 }
 
 export default function App() {
-  const [session, setSession] = usePersistentState(SESSION_KEY, null);
+  const [session, setSession] = usePersistentState(SESSION_KEY, { token: 'prototype_token', owner: { name: 'Recruiter Demo', phone: '0000000000', id: 'demo123' } });
   const [localState, setLocalState] = useState(EMPTY_APP_STATE);
   const [activeView, setActiveView] = useState('dashboard');
   const [isMobileOpen, setMobileOpen] = useState(false);
@@ -196,11 +196,8 @@ export default function App() {
       } catch (error) {
         if (!cancelled) {
           setConnectionState({ status: 'error', label: 'Database unavailable' });
-          setNotice(error.message || 'Unable to connect to the API.');
-          setLocalState(EMPTY_APP_STATE);
-          if (session?.token) {
-            setSession(null);
-          }
+          setNotice('');
+          // Prototype bypass: allow app to work offline or retry, don't clear session
         }
         if (!cancelled) {
           setIsBootstrapping(false);
@@ -222,11 +219,8 @@ export default function App() {
         }
       } catch (error) {
         if (!cancelled) {
-          setNotice(error.message || 'Failed to load workspace.');
-          setLocalState(EMPTY_APP_STATE);
-          if (error.status === 401 || error.status === 403) {
-            setSession(null);
-          }
+          setNotice('');
+          // Prototype bypass: don't wipe data
         }
       } finally {
         if (!cancelled) {
@@ -586,81 +580,7 @@ export default function App() {
     setLocalState((current) => ({ ...current, ledgerEntries: normalizeLedgerEntries([entry, ...current.ledgerEntries]) }));
   }
 
-  if (!session) {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-4">
-        <div className="glass-card w-full max-w-md rounded-[36px] border border-white/60 p-8">
-          <AppLogo />
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">Owner authentication</p>
-          <h1 className="mt-3 text-4xl font-semibold text-slate-900">{isLoginMode ? 'Secure loan command center' : 'Create an admin account'}</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            {isLoginMode 
-              ? 'Login as the owner to manage borrowers, track EMIs, maintain khata entries and review reports.' 
-              : 'Register as an owner to securely manage your own separate lending portfolio.'}
-          </p>
-          <form className="mt-8 grid gap-4" onSubmit={isOtpMode ? handleVerifyOtp : (isLoginMode ? handleLogin : handleRegister)}>
-            {isOtpMode ? (
-              <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Enter your real OTP
-                <input required value={otpInput} onChange={(event) => setOtpInput(event.target.value)} placeholder="000000" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-xl tracking-widest" />
-              </label>
-            ) : (
-              <>
-                {!isLoginMode && (
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Full Name
-                    <input required value={loginForm.name} onChange={(event) => setLoginForm((current) => ({ ...current, name: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
-                  </label>
-                )}
-                <label className="grid gap-2 text-sm font-medium text-slate-700">
-                  Phone number
-                  <input required value={loginForm.phone} onChange={(event) => setLoginForm((current) => ({ ...current, phone: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
-                </label>
-                <label className="grid gap-2 text-sm font-medium text-slate-700">
-                  Password
-                  <input required type="password" value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} className="rounded-2xl border border-slate-200 bg-white px-4 py-3" />
-                </label>
-              </>
-            )}
-            <button className="rounded-2xl bg-teal-700 px-5 py-3 font-medium text-white" type="submit">
-              {isOtpMode ? 'Verify & Continue' : (isLoginMode ? 'Login' : 'Sign Up')}
-            </button>
-            {!isOtpMode && (
-              <div className="text-center mt-2">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setIsLoginMode(!isLoginMode);
-                    setIsOtpMode(false);
-                    setNotice('');
-                  }} 
-                  className="text-sm font-medium text-teal-700 hover:text-teal-800 transition"
-                >
-                  {isLoginMode ? "Don't have an account? Sign up instead" : "Already have an account? Log in"}
-                </button>
-              </div>
-            )}
-            {isOtpMode && (
-              <div className="text-center mt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setIsOtpMode(false)} 
-                  className="text-sm font-medium text-slate-500 hover:text-slate-700 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </form>
-          <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-sm text-emerald-900">
-            <p className="font-semibold">Connection status: {connectionState.label}</p>
-            <p className="mt-1 text-emerald-800">This app now requires the live API and MongoDB connection for all login and data operations.</p>
-          </div>
-          {notice ? <p className="mt-4 text-sm font-medium text-rose-600 text-center">{notice}</p> : null}
-        </div>
-      </main>
-    );
-  }
+  // Authentication removed for prototype 
 
   const viewMap = {
     dashboard: <DashboardPage dashboard={insights.dashboard} reminders={insights.reminders} recentPayments={insights.dashboard.recentPayments} />,
